@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduStat — Analyse Scolaire</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #4F46E5;
+  --primary-dark: #3730A3;
+  --primary-light: #EEF2FF;
+  --accent: #06B6D4;
+  --accent-light: #ECFEFF;
+  --success: #10B981;
+  --success-light: #D1FAE5;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --danger: #EF4444;
+  --danger-light: #FEE2E2;
+  --purple: #8B5CF6;
+  --purple-light: #EDE9FE;
+  --bg: #F1F5F9;
+  --surface: #FFFFFF;
+  --surface2: #F8FAFC;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-hint: #94A3B8;
+  --sidebar-w: 260px;
+  --header-h: 70px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  position: fixed; left: 0; top: 0; width: var(--sidebar-w); height: 100vh;
+  background: linear-gradient(160deg, #1E1B4B 0%, #312E81 50%, #1E1B4B 100%);
+  display: flex; flex-direction: column; z-index: 100; overflow: hidden;
+}
+.sidebar::before {
+  content:''; position:absolute; top:-80px; right:-80px;
+  width:200px; height:200px; border-radius:50%;
+  background: rgba(99,102,241,0.15);
+}
+.sidebar::after {
+  content:''; position:absolute; bottom:-60px; left:-60px;
+  width:180px; height:180px; border-radius:50%;
+  background: rgba(6,182,212,0.1);
+}
+.sidebar-logo {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  position: relative; z-index: 1;
+}
+.sidebar-logo .logo-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: linear-gradient(135deg, #6366F1, #06B6D4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 10px;
+}
+.sidebar-logo h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px;
+}
+.sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; letter-spacing: .05em; text-transform: uppercase; }
+
+.sidebar-nav { padding: 20px 12px; flex: 1; position: relative; z-index: 1; }
+.nav-section-label {
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; letter-spacing: .1em;
+  padding: 0 12px; margin: 16px 0 8px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 10px;
+  cursor: pointer; transition: all .2s;
+  color: rgba(255,255,255,0.6); font-size: 14px; font-weight: 500;
+  margin-bottom: 2px; position: relative;
+}
+.nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(6,182,212,0.2));
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4);
+}
+.nav-item.active::before {
+  content:''; position:absolute; left:0; top:50%; transform:translateY(-50%);
+  width:3px; height:60%; background:linear-gradient(#6366F1,#06B6D4);
+  border-radius:0 3px 3px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: .8; }
+.nav-badge {
+  margin-left: auto; background: rgba(99,102,241,0.4);
+  color: #C7D2FE; font-size: 10px; font-weight: 600;
+  padding: 2px 7px; border-radius: 20px;
+}
+
+.sidebar-footer {
+  padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08);
+  position: relative; z-index: 1;
+}
+.sidebar-footer .version { font-size: 11px; color: rgba(255,255,255,0.25); }
+.sidebar-footer .univ { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500; margin-bottom: 2px; }
+
+/* ─── MAIN ─── */
+.main { margin-left: var(--sidebar-w); min-height: 100vh; }
+
+.topbar {
+  height: var(--header-h); background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; position: sticky; top: 0; z-index: 50;
+}
+.topbar-left h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+.topbar-left p { font-size: 12px; color: var(--text-hint); margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.stat-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--primary-light); border-radius: 20px;
+  padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--primary);
+}
+.stat-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+.page { padding: 32px; display: none; animation: fadeIn .3s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ─── PAGE HEADER ─── */
+.page-header { margin-bottom: 28px; }
+.page-header h2 { font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:700; color:var(--text); }
+.page-header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+.page-header-row { display:flex; justify-content:space-between; align-items:flex-start; }
+
+/* ─── METRICS ─── */
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 16px; margin-bottom: 28px; }
+.metric-card {
+  background: var(--surface); border-radius: 16px;
+  padding: 20px; border: 1px solid var(--border);
+  transition: transform .2s, box-shadow .2s; position: relative; overflow: hidden;
+}
+.metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.metric-card::before {
+  content:''; position:absolute; top:0; right:0;
+  width:80px; height:80px; border-radius:0 16px 0 80px;
+  opacity: .06;
+}
+.metric-card.blue::before { background: var(--primary); }
+.metric-card.teal::before { background: var(--accent); }
+.metric-card.green::before { background: var(--success); }
+.metric-card.amber::before { background: var(--warning); }
+.metric-card.purple::before { background: var(--purple); }
+.metric-card.red::before { background: var(--danger); }
+
+.metric-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 12px;
+}
+.metric-icon.blue { background: var(--primary-light); }
+.metric-icon.teal { background: var(--accent-light); }
+.metric-icon.green { background: var(--success-light); }
+.metric-icon.amber { background: var(--warning-light); }
+.metric-icon.purple { background: var(--purple-light); }
+.metric-icon.red { background: var(--danger-light); }
+.metric-label { font-size: 12px; color: var(--text-hint); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.metric-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+.metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--surface); border-radius: 16px;
+  border: 1px solid var(--border); padding: 24px; margin-bottom: 20px;
+}
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.card-title { font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; color:var(--text); display:flex; align-items:center; gap:8px; }
+.card-title-dot { width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,var(--primary),var(--accent)); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+
+/* ─── FORM ─── */
+.form-section { margin-bottom: 24px; }
+.form-section-title {
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin-bottom: 14px; display:flex; align-items:center; gap:8px;
+}
+.form-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+.field { display:flex; flex-direction:column; gap:6px; }
+.field label { font-size:12px; font-weight:600; color:var(--text-muted); letter-spacing:.03em; }
+.field input, .field select {
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; font-family:'Plus Jakarta Sans',sans-serif;
+  font-size: 14px; background: var(--surface2); color: var(--text);
+  outline: none; transition: all .2s;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--primary); background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+.field input::placeholder { color: var(--text-hint); }
+
+/* ─── BUTTONS ─── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 22px; border-radius: 10px; font-family:'Plus Jakarta Sans',sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+  transition: all .2s; white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), #6366F1);
+  color: #fff; box-shadow: 0 4px 14px rgba(79,70,229,0.35);
+}
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(79,70,229,0.45); transform: translateY(-1px); }
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent), #0EA5E9);
+  color: #fff; box-shadow: 0 4px 14px rgba(6,182,212,0.3);
+}
+.btn-outline {
+  background: var(--surface); border: 1.5px solid var(--border);
+  color: var(--text-muted);
+}
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.btn-danger-soft {
+  background: var(--danger-light); color: var(--danger);
+  font-size: 12px; padding: 6px 12px; border-radius: 8px;
+}
+.btn-danger-soft:hover { background: #FECACA; }
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+
+/* ─── ALERT ─── */
+.alert {
+  padding: 12px 16px; border-radius: 10px; font-size: 13px;
+  font-weight: 500; display:flex; align-items:center; gap:10px;
+  margin-bottom: 16px; border: 1px solid transparent;
+}
+.alert-success { background:var(--success-light); color:#065F46; border-color:#6EE7B7; }
+.alert-error { background:var(--danger-light); color:#991B1B; border-color:#FCA5A5; }
+.alert-info { background:var(--primary-light); color:#3730A3; border-color:#A5B4FC; }
+.alert-warning { background:var(--warning-light); color:#92400E; border-color:#FCD34D; }
+
+/* ─── TABLE ─── */
+.table-wrap { overflow-x:auto; border-radius:12px; border:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead { background: var(--surface2); }
+th {
+  padding: 12px 16px; font-size:11px; font-weight:700;
+  color: var(--text-muted); text-transform:uppercase; letter-spacing:.06em;
+  border-bottom: 1px solid var(--border); text-align:left; white-space:nowrap;
+}
+td { padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tbody tr { transition: background .15s; }
+tbody tr:hover { background: #F8FAFF; }
+
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display:inline-flex; align-items:center; justify-content:center;
+  color:#fff; font-size:12px; font-weight:700; flex-shrink:0;
+}
+
+/* ─── MENTION BADGES ─── */
+.badge {
+  display: inline-flex; align-items:center; gap:5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+}
+.badge-tb { background:linear-gradient(135deg,#D1FAE5,#A7F3D0); color:#065F46; }
+.badge-b  { background:linear-gradient(135deg,#DBEAFE,#BFDBFE); color:#1E40AF; }
+.badge-ab { background:linear-gradient(135deg,#EDE9FE,#DDD6FE); color:#5B21B6; }
+.badge-p  { background:linear-gradient(135deg,#FEF3C7,#FDE68A); color:#92400E; }
+.badge-i  { background:linear-gradient(135deg,#FEE2E2,#FECACA); color:#991B1B; }
+
+/* ─── PROGRESS BAR ─── */
+.progress-bar { height: 6px; background: var(--border); border-radius: 99px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:99px; transition:width .6s ease; }
+
+/* ─── CHARTS ─── */
+.chart-container { position:relative; }
+
+/* ─── STAT TABLE ─── */
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+.stat-row:last-child { border-bottom:none; }
+.stat-label { font-size:13px; color:var(--text-muted); font-weight:500; }
+.stat-value { font-size:14px; font-weight:700; color:var(--text); }
+
+/* ─── PREDICTION ─── */
+.pred-hero {
+  border-radius: 16px; padding: 32px;
+  background: linear-gradient(135deg, #1E1B4B, #312E81, #1E3A5F);
+  color: #fff; text-align:center; position:relative; overflow:hidden;
+  margin-bottom: 20px;
+}
+.pred-hero::before {
+  content:''; position:absolute; top:-40px; right:-40px;
+  width:160px; height:160px; border-radius:50%;
+  background:rgba(99,102,241,0.2);
+}
+.pred-hero::after {
+  content:''; position:absolute; bottom:-40px; left:-40px;
+  width:120px; height:120px; border-radius:50%;
+  background:rgba(6,182,212,0.15);
+}
+.pred-score { font-family:'Space Grotesk',sans-serif; font-size:72px; font-weight:800; line-height:1; position:relative;z-index:1; }
+.pred-score span { font-size:28px; opacity:.5; }
+.pred-mention-text { font-size:16px; font-weight:600; margin-top:8px; opacity:.9; position:relative;z-index:1; }
+.pred-label { font-size:12px; opacity:.5; margin-top:4px; position:relative;z-index:1; }
+
+.coeff-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:16px; }
+.coeff-card {
+  background: var(--surface2); border-radius: 12px;
+  padding: 14px; border: 1px solid var(--border); text-align:center;
+}
+.coeff-name { font-size:11px; color:var(--text-hint); margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+.coeff-val { font-size:20px; font-weight:700; color:var(--primary); }
+
+/* ─── FORMULA BOX ─── */
+.formula-box {
+  background: linear-gradient(135deg, var(--primary-light), var(--accent-light));
+  border: 1px solid #C7D2FE; border-radius: 12px;
+  padding: 16px 20px; font-family: monospace;
+  font-size: 13px; color: var(--primary-dark); margin-top:16px;
+  line-height: 1.8;
+}
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+  text-align:center; padding: 60px 20px; color: var(--text-hint);
+}
+.empty-state .empty-icon { font-size:52px; margin-bottom:12px; opacity:.4; }
+.empty-state h3 { font-size:16px; font-weight:600; color:var(--text-muted); margin-bottom:6px; }
+.empty-state p { font-size:13px; }
+
+/* ─── TOAST ─── */
+#toast {
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  background: linear-gradient(135deg,#1E1B4B,#312E81);
+  color:#fff; padding:12px 20px; border-radius:12px;
+  font-size:13px; font-weight:500;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  opacity:0; transform:translateY(10px);
+  transition: all .3s; pointer-events:none;
+  display:flex; align-items:center; gap:8px;
+}
+#toast.show { opacity:1; transform:translateY(0); }
+
+/* ─── LEGEND ─── */
+.legend-row { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:12px; }
+.legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); font-weight:500; }
+.legend-swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+
+/* ─── R2 BAR ─── */
+.r2-bar-wrap { margin-top:12px; }
+.r2-label { display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:500; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%)}
+  .main{margin-left:0}
+  .grid2,.grid3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🎓</div>
+    <h1>EduStat</h1>
+    <p>INF 232 — EC2</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Application</div>
+    <div class="nav-item active" onclick="showPage('collecte',this)">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 4v16m8-8H4"/></svg>
+      Saisie des données
+    </div>
+    <div class="nav-item" onclick="showPage('liste',this)">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Liste des étudiants
+      <span class="nav-badge" id="nav-count">0</span>
+    </div>
+    <div class="nav-section-label">Analyse</div>
+    <div class="nav-item" onclick="showPage('analyse',this)">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      Analyse descriptive
+    </div>
+    <div class="nav-item" onclick="showPage('prediction',this)">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Prédiction des notes
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="univ">Université de Yaoundé</div>
+    <div class="version">v2.0 — 2024/2025</div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h2 id="topbar-title">Saisie des données</h2>
+      <p id="topbar-sub">Enregistrement des informations étudiants</p>
+    </div>
+    <div class="topbar-right">
+      <div class="stat-pill">
+        <div class="dot"></div>
+        <span id="hdr-count">0 étudiant</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ PAGE COLLECTE ═══ -->
+  <div class="page active" id="page-collecte">
+    <div class="page-header">
+      <h2>Saisie des données</h2>
+      <p>Renseignez les informations académiques de chaque étudiant</p>
+    </div>
+
+    <div id="form-alert"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><div class="card-title-dot"></div> Informations personnelles</div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Nom complet *</label><input id="f-nom" type="text" placeholder="Ex: Jean Dupont"></div>
+        <div class="field"><label>Matricule *</label><input id="f-matricule" type="text" placeholder="Ex: 24INF001"></div>
+        <div class="field">
+          <label>Filière *</label>
+          <select id="f-filiere">
+            <option value="">Sélectionner...</option>
+            <option>Informatique</option><option>Mathématiques</option>
+            <option>Physique</option><option>Chimie</option>
+            <option>Biologie</option><option>Économie</option>
+            <option>Droit</option><option>Lettres</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Niveau</label>
+          <select id="f-niveau">
+            <option value="">Sélectionner...</option>
+            <option>Licence 1</option><option>Licence 2</option><option>Licence 3</option>
+            <option>Master 1</option><option>Master 2</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sexe</label>
+          <select id="f-sexe">
+            <option value="">Sélectionner...</option>
+            <option value="M">Masculin</option><option value="F">Féminin</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><div class="card-title-dot"></div> Données académiques</div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Moyenne devoirs (/20) *</label><input id="f-devoirs" type="number" min="0" max="20" step="0.25" placeholder="Ex: 13.5"></div>
+        <div class="field"><label>Note examen (/20)</label><input id="f-examen" type="number" min="0" max="20" step="0.25" placeholder="Ex: 14.0"></div>
+        <div class="field"><label>Note finale (/20) *</label><input id="f-note" type="number" min="0" max="20" step="0.25" placeholder="Ex: 13.8"></div>
+        <div class="field"><label>Absences (heures) *</label><input id="f-absences" type="number" min="0" step="1" placeholder="Ex: 4"></div>
+        <div class="field"><label>Heures d'étude / semaine *</label><input id="f-heures" type="number" min="0" max="80" step="1" placeholder="Ex: 15"></div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px;">
+      <button class="btn btn-primary" onclick="addEtudiant()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v16m8-8H4"/></svg>
+        Enregistrer l'étudiant
+      </button>
+      <button class="btn btn-outline" onclick="clearForm()">Effacer</button>
+    </div>
+  </div>
+
+  <!-- ═══ PAGE LISTE ═══ -->
+  <div class="page" id="page-liste">
+    <div class="page-header-row">
+      <div class="page-header">
+        <h2>Liste des étudiants</h2>
+        <p>Tous les étudiants enregistrés dans le système</p>
+      </div>
+    </div>
+    <div id="liste-container"></div>
+  </div>
+
+  <!-- ═══ PAGE ANALYSE ═══ -->
+  <div class="page" id="page-analyse">
+    <div class="page-header">
+      <h2>Analyse descriptive</h2>
+      <p>Statistiques et visualisations des données collectées</p>
+    </div>
+    <div id="analyse-container"></div>
+  </div>
+
+  <!-- ═══ PAGE PREDICTION ═══ -->
+  <div class="page" id="page-prediction">
+    <div class="page-header">
+      <h2>Prédiction des notes</h2>
+      <p>Modèle de régression linéaire multiple (OLS) — implémenté en Python pur</p>
+    </div>
+    <div class="alert alert-info">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      Le modèle apprend des données enregistrées pour prédire : <strong>Note = β₀ + β₁×absences + β₂×devoirs + β₃×heures</strong>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><div class="card-title-dot"></div> Paramètres étudiant</div>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr">
+          <div class="field"><label>Absences (heures)</label><input id="p-absences" type="number" min="0" step="1" value="3"></div>
+          <div class="field"><label>Moyenne devoirs (/20)</label><input id="p-devoirs" type="number" min="0" max="20" step="0.5" value="12"></div>
+          <div class="field"><label>Heures d'étude / semaine</label><input id="p-heures" type="number" min="0" step="1" value="10"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="predict()">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Lancer la prédiction
+        </button>
+      </div>
+      <div id="pred-result">
+        <div class="empty-state">
+          <div class="empty-icon">🔮</div>
+          <h3>Résultat ici</h3>
+          <p>Renseignez les paramètres et lancez la prédiction</p>
+        </div>
+      </div>
+    </div>
+    <div id="pred-detail"></div>
+  </div>
+
+</div><!-- /main -->
+
+<div id="toast">✓ <span id="toast-msg"></span></div>
+
+<script>
+let charts = {};
+const PAGES = {
+  collecte: { title:'Saisie des données', sub:'Enregistrement des informations étudiants' },
+  liste:    { title:'Liste des étudiants', sub:'Tous les étudiants enregistrés' },
+  analyse:  { title:'Analyse descriptive', sub:'Statistiques et visualisations' },
+  prediction:{ title:'Prédiction des notes', sub:'Régression linéaire multiple (OLS)' }
+};
+
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('topbar-title').textContent = PAGES[name].title;
+  document.getElementById('topbar-sub').textContent = PAGES[name].sub;
+  if (name === 'liste') loadListe();
+  if (name === 'analyse') loadAnalyse();
+}
+
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.style.background = ok ? 'linear-gradient(135deg,#065F46,#0F766E)' : 'linear-gradient(135deg,#991B1B,#B91C1C)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function mention(n) {
+  if (n >= 16) return ['Très Bien','badge-tb'];
+  if (n >= 14) return ['Bien','badge-b'];
+  if (n >= 12) return ['Assez Bien','badge-ab'];
+  if (n >= 10) return ['Passable','badge-p'];
+  return ['Insuffisant','badge-i'];
+}
+
+function initials(nom) {
+  return nom.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
+}
+
+function noteColor(n) {
+  if (n >= 16) return '#10B981';
+  if (n >= 12) return '#4F46E5';
+  if (n >= 10) return '#F59E0B';
+  return '#EF4444';
+}
+
+async function updateCount() {
+  const r = await fetch('/api/etudiants');
+  const d = await r.json();
+  const n = d.length;
+  document.getElementById('hdr-count').textContent = n + ' étudiant' + (n>1?'s':'');
+  document.getElementById('nav-count').textContent = n;
+}
+
+async function addEtudiant() {
+  const nom = document.getElementById('f-nom').value.trim();
+  const filiere = document.getElementById('f-filiere').value;
+  const note_finale = parseFloat(document.getElementById('f-note').value);
+  const absences = parseFloat(document.getElementById('f-absences').value);
+  const heures = parseFloat(document.getElementById('f-heures').value);
+  const devoirs = parseFloat(document.getElementById('f-devoirs').value);
+
+  if (!nom || !filiere || isNaN(note_finale) || isNaN(absences) || isNaN(heures) || isNaN(devoirs)) {
+    document.getElementById('form-alert').innerHTML = `<div class="alert alert-error"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg> Veuillez remplir tous les champs obligatoires (*).</div>`;
+    setTimeout(() => document.getElementById('form-alert').innerHTML='', 3500);
+    return;
+  }
+  const e = {
+    nom, matricule: document.getElementById('f-matricule').value.trim(),
+    filiere, niveau: document.getElementById('f-niveau').value,
+    sexe: document.getElementById('f-sexe').value,
+    moyenne_devoirs: devoirs,
+    note_examen: parseFloat(document.getElementById('f-examen').value)||0,
+    note_finale, absences, heures_etude: heures
+  };
+  await fetch('/api/etudiants', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(e)});
+  document.getElementById('form-alert').innerHTML = `<div class="alert alert-success"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> <strong>${nom}</strong> enregistré avec succès !</div>`;
+  setTimeout(() => document.getElementById('form-alert').innerHTML='', 3500);
+  clearForm(); updateCount();
+}
+
+function clearForm() {
+  document.querySelectorAll('#page-collecte input, #page-collecte select').forEach(el => el.value='');
+}
+
+async function loadListe() {
+  const r = await fetch('/api/etudiants');
+  const data = await r.json();
+  const c = document.getElementById('liste-container');
+  if (!data.length) {
+    c.innerHTML = `<div class="card"><div class="empty-state"><div class="empty-icon">📚</div><h3>Aucun étudiant</h3><p>Commencez par saisir des données dans l'onglet "Saisie"</p></div></div>`;
+    return;
+  }
+  c.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Étudiant</th><th>Filière</th><th>Niveau</th>
+        <th>Moy. devoirs</th><th>Note finale</th><th>Absences</th><th>Heures/sem</th><th>Mention</th><th></th>
+      </tr></thead>
+      <tbody>${data.map(e => {
+        const [m,cls] = mention(e.note_finale||0);
+        return `<tr>
+          <td><div style="display:flex;align-items:center;gap:10px">
+            <div class="avatar">${initials(e.nom||'?')}</div>
+            <div><div style="font-weight:600;font-size:13px">${e.nom||'—'}</div>
+            <div style="font-size:11px;color:var(--text-hint)">${e.matricule||'—'}</div></div>
+          </div></td>
+          <td><span style="font-size:12px;background:var(--primary-light);color:var(--primary);padding:3px 8px;border-radius:6px;font-weight:600">${e.filiere||'—'}</span></td>
+          <td style="color:var(--text-muted);font-size:12px">${e.niveau||'—'}</td>
+          <td><div style="display:flex;align-items:center;gap:8px">
+            <div style="font-weight:600">${(e.moyenne_devoirs||0).toFixed(1)}</div>
+            <div class="progress-bar" style="width:50px"><div class="progress-fill" style="width:${(e.moyenne_devoirs||0)*5}%;background:var(--accent)"></div></div>
+          </div></td>
+          <td><div style="font-size:16px;font-weight:700;color:${noteColor(e.note_finale||0)}">${(e.note_finale||0).toFixed(1)}</div></td>
+          <td style="color:${(e.absences||0)>10?'var(--danger)':'var(--text-muted)'}">
+            ${e.absences||0}h ${(e.absences||0)>10?'⚠️':''}
+          </td>
+          <td style="color:var(--text-muted)">${e.heures_etude||0}h</td>
+          <td><span class="badge ${cls}">${m}</span></td>
+          <td><button class="btn btn-danger-soft btn-sm" onclick="delEtudiant(${e.id})">✕</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div></div>`;
+}
+
+async function delEtudiant(id) {
+  if (!confirm('Supprimer cet étudiant ?')) return;
+  await fetch('/api/etudiants/'+id, {method:'DELETE'});
+  loadListe(); updateCount(); toast('Étudiant supprimé', false);
+}
+
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+async function loadAnalyse() {
+  const r = await fetch('/api/stats');
+  const s = await r.json();
+  const c = document.getElementById('analyse-container');
+  if (s.error) {
+    c.innerHTML = `<div class="card"><div class="empty-state"><div class="empty-icon">📊</div><h3>Données insuffisantes</h3><p>Ajoutez au moins un étudiant pour voir l'analyse</p></div></div>`;
+    return;
+  }
+  const n = s.notes;
+  const mentColors = {'Très Bien':'#10B981','Bien':'#4F46E5','Assez Bien':'#8B5CF6','Passable':'#F59E0B','Insuffisant':'#EF4444'};
+  const filColors = ['#4F46E5','#06B6D4','#10B981','#F59E0B','#EF4444','#8B5CF6','#F97316'];
+
+  c.innerHTML = `
+  <div class="metrics-grid">
+    <div class="metric-card blue"><div class="metric-icon blue">👥</div><div class="metric-label">Total</div><div class="metric-value">${s.total}</div><div class="metric-sub">étudiants</div></div>
+    <div class="metric-card teal"><div class="metric-icon teal">📊</div><div class="metric-label">Moyenne</div><div class="metric-value">${n.moyenne}</div><div class="metric-sub">/ 20</div></div>
+    <div class="metric-card purple"><div class="metric-icon purple">📏</div><div class="metric-label">Médiane</div><div class="metric-value">${n.mediane}</div><div class="metric-sub">/ 20</div></div>
+    <div class="metric-card green"><div class="metric-icon green">⬆️</div><div class="metric-label">Maximum</div><div class="metric-value">${n.max}</div><div class="metric-sub">/ 20</div></div>
+    <div class="metric-card amber"><div class="metric-icon amber">⬇️</div><div class="metric-label">Minimum</div><div class="metric-value">${n.min}</div><div class="metric-sub">/ 20</div></div>
+    <div class="metric-card red"><div class="metric-icon red">📉</div><div class="metric-label">Écart-type</div><div class="metric-value">${n.ecart_type}</div><div class="metric-sub">dispersion</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Distribution des notes</div></div>
+      <div class="chart-container" style="height:220px"><canvas id="ch-dist" role="img" aria-label="Histogramme des notes">Distribution des notes.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Répartition par mention</div></div>
+      <div class="legend-row">${Object.entries(mentColors).map(([k,v])=>`<div class="legend-item"><div class="legend-swatch" style="background:${v}"></div>${k}</div>`).join('')}</div>
+      <div class="chart-container" style="height:185px"><canvas id="ch-ment" role="img" aria-label="Mentions">Répartition par mention.</canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Étudiants par filière</div></div>
+      <div class="chart-container" style="height:${Math.max(200,Object.keys(s.filieres).length*44+60)}px"><canvas id="ch-fil" role="img" aria-label="Filières">Filières.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Absences vs Note finale</div></div>
+      <div class="chart-container" style="height:220px"><canvas id="ch-scatter" role="img" aria-label="Corrélation absences-notes">Nuage de points.</canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Statistiques des notes</div></div>
+      ${['moyenne','mediane','min','max','ecart_type'].map(k=>`<div class="stat-row"><span class="stat-label">${k.charAt(0).toUpperCase()+k.slice(1).replace('_',' ')}</span><span class="stat-value">${n[k]} / 20</span></div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Statistiques des absences</div></div>
+      ${Object.entries(s.absences).map(([k,v])=>`<div class="stat-row"><span class="stat-label">${k.charAt(0).toUpperCase()+k.slice(1)}</span><span class="stat-value">${v}h</span></div>`).join('')}
+    </div>
+  </div>`;
+
+  // Chart: Distribution
+  destroyChart('dist');
+  const bins = Array(10).fill(0);
+  s.distribution.forEach(v => { bins[Math.min(9, Math.floor(v/2))]++; });
+  charts['dist'] = new Chart(document.getElementById('ch-dist'), {
+    type:'bar',
+    data:{ labels:['0-2','2-4','4-6','6-8','8-10','10-12','12-14','14-16','16-18','18-20'],
+           datasets:[{label:'Nb étudiants',data:bins,backgroundColor:bins.map((_,i)=>i<5?'rgba(239,68,68,0.7)':i<7?'rgba(245,158,11,0.7)':'rgba(16,185,129,0.7)'),borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}
+  });
+
+  // Chart: Mentions
+  destroyChart('ment');
+  const ml = Object.keys(s.mentions).filter(k=>s.mentions[k]>0);
+  charts['ment'] = new Chart(document.getElementById('ch-ment'), {
+    type:'doughnut',
+    data:{labels:ml,datasets:[{data:ml.map(k=>s.mentions[k]),backgroundColor:ml.map(k=>mentColors[k]),borderWidth:3,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false}}}
+  });
+
+  // Chart: Filières
+  destroyChart('fil');
+  const fl = Object.keys(s.filieres);
+  charts['fil'] = new Chart(document.getElementById('ch-fil'), {
+    type:'bar',
+    data:{labels:fl,datasets:[{data:fl.map(k=>s.filieres[k]),backgroundColor:fl.map((_,i)=>filColors[i%filColors.length]),borderRadius:6,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{stepSize:1}},y:{grid:{display:false}}}}
+  });
+
+  // Chart: Scatter
+  destroyChart('scatter');
+  charts['scatter'] = new Chart(document.getElementById('ch-scatter'), {
+    type:'scatter',
+    data:{datasets:[{label:'Étudiants',data:s.scatter.map(p=>({x:p.x,y:p.y})),backgroundColor:'rgba(79,70,229,0.65)',pointRadius:7,pointHoverRadius:9,pointBorderColor:'#fff',pointBorderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:10},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:d=>{const p=s.scatter[d.dataIndex];return `${p.nom} — Abs: ${p.x}h, Note: ${p.y}`;}}}},
+      scales:{x:{title:{display:true,text:'Absences (h)'},min:0},y:{title:{display:true,text:'Note finale /20'},min:0,max:20}}}
+  });
+}
+
+async function predict() {
+  const body = {
+    absences: parseFloat(document.getElementById('p-absences').value)||0,
+    moyenne_devoirs: parseFloat(document.getElementById('p-devoirs').value)||0,
+    heures_etude: parseFloat(document.getElementById('p-heures').value)||0
+  };
+  const r = await fetch('/api/prediction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  const [m] = mention(d.prediction);
+  const nc = noteColor(d.prediction);
+
+  document.getElementById('pred-result').innerHTML = `
+    <div class="pred-hero">
+      <div class="pred-score">${d.prediction.toFixed(2)}<span>/20</span></div>
+      <div class="pred-mention-text">${m}</div>
+      <div class="pred-label">Note prédite par régression linéaire multiple</div>
+    </div>`;
+
+  document.getElementById('pred-detail').innerHTML = `
+    <div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Détails du modèle</div></div>
+      <div class="stat-row"><span class="stat-label">Méthode</span><span class="stat-value" style="font-size:13px">${d.methode}</span></div>
+      <div class="stat-row"><span class="stat-label">Données d'entraînement</span><span class="stat-value">${d.n} étudiant${d.n>1?'s':''}</span></div>
+      ${d.r2!==null?`<div class="stat-row"><span class="stat-label">Coefficient R²</span><span class="stat-value">${d.r2}</span></div>
+      <div class="r2-bar-wrap"><div class="r2-label"><span>Qualité du modèle</span><span>${Math.round(d.r2*100)}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(d.r2*100)}%;background:linear-gradient(90deg,var(--primary),var(--accent))"></div></div></div>`:''}
+    </div>
+    ${d.coefficients?`<div class="card">
+      <div class="card-header"><div class="card-title"><div class="card-title-dot"></div>Coefficients β de régression</div></div>
+      <div class="coeff-grid">
+        <div class="coeff-card"><div class="coeff-name">Constante β₀</div><div class="coeff-val">${d.coefficients.constante}</div></div>
+        <div class="coeff-card"><div class="coeff-name">Absences β₁</div><div class="coeff-val" style="color:var(--danger)">${d.coefficients.absences}</div></div>
+        <div class="coeff-card"><div class="coeff-name">Devoirs β₂</div><div class="coeff-val" style="color:var(--success)">${d.coefficients.moyenne_devoirs}</div></div>
+        <div class="coeff-card"><div class="coeff-name">Heures étude β₃</div><div class="coeff-val" style="color:var(--accent)">${d.coefficients.heures_etude}</div></div>
+      </div>
+      <div class="formula-box">
+        📐 <strong>Modèle :</strong><br>
+        Note = ${d.coefficients.constante}<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;+ (${d.coefficients.absences} × absences)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;+ (${d.coefficients.moyenne_devoirs} × devoirs)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;+ (${d.coefficients.heures_etude} × heures_étude)
+      </div>
+    </div>`:''}`;
+}
+
+updateCount();
+</script>
+</body>
+</html>
